@@ -58,13 +58,15 @@ type (
 )
 
 const (
-	MetadataSysPrefix           = "sys:"
-	MetadataUploadSessionPrefix = MetadataSysPrefix + "upload_session"
-	MetadataUploadSessionID     = MetadataUploadSessionPrefix + "_id"
-	MetadataSharedRedirect      = MetadataSysPrefix + "shared_redirect"
-	MetadataRestoreUri          = MetadataSysPrefix + "restore_uri"
-	MetadataExpectedCollectTime = MetadataSysPrefix + "expected_collect_time"
-	MetadataSharedOwner         = MetadataSysPrefix + "shared_owner"
+	MetadataSysPrefix            = "sys:"
+	MetadataUploadSessionPrefix  = MetadataSysPrefix + "upload_session"
+	MetadataUploadSessionID      = MetadataUploadSessionPrefix + "_id"
+	MetadataVersionSessionID     = MetadataSysPrefix + "version_session_id"
+	MetadataVersionSessionEntity = MetadataSysPrefix + "version_session_entity"
+	MetadataSharedRedirect       = MetadataSysPrefix + "shared_redirect"
+	MetadataRestoreUri           = MetadataSysPrefix + "restore_uri"
+	MetadataExpectedCollectTime  = MetadataSysPrefix + "expected_collect_time"
+	MetadataSharedOwner          = MetadataSysPrefix + "shared_owner"
 
 	ThumbMetadataPrefix = "thumb:"
 	ThumbDisabledKey    = ThumbMetadataPrefix + "disabled"

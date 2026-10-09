@@ -31,6 +31,7 @@ type (
 		EntityType          string            `json:"entity_type" binding:"eq=|eq=live_photo|eq=version"`
 		EncryptionSupported []types.Cipher    `json:"encryption_supported"`
 		Previous            string            `form:"previous"`
+		VersionSession      string            `json:"version_session" binding:"omitempty,max=64"`
 	}
 )
 
@@ -71,6 +72,7 @@ func (service *CreateUploadSessionService) Create(c context.Context) (*UploadSes
 			Size: service.Size,
 
 			PreviousVersion:        service.Previous,
+			VersionSession:         service.VersionSession,
 			MimeType:               service.MimeType,
 			Metadata:               service.Metadata,
 			EntityType:             entityType,

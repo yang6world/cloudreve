@@ -38,3 +38,12 @@ tmp/
 .devcontainer/
 cloudreve
 .DS_Store
+
+# Locally cross-compiled server binaries. Upstream only ignores the bare
+# `cloudreve` name and `*.exe`, so GOOS/GOARCH-suffixed outputs slip through.
+/cloudreve-linux-*
+/cloudreve-darwin-*
+/cloudreve-windows-*
+
+# Build / run logs
+*.log

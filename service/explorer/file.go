@@ -303,8 +303,9 @@ func (s *MoveFileService) Move(c *gin.Context) error {
 type (
 	FileUpdateParameterCtx struct{}
 	FileUpdateService      struct {
-		Uri      string `form:"uri" binding:"required"`
-		Previous string `form:"previous"`
+		Uri            string `form:"uri" binding:"required"`
+		Previous       string `form:"previous"`
+		VersionSession string `form:"version_session" binding:"omitempty,max=64"`
 	}
 )
 
@@ -330,6 +331,7 @@ func (service *FileUpdateService) PutContent(c *gin.Context, ls fs.LockSession) 
 		Props: &fs.UploadProps{
 			Uri:             uri,
 			PreviousVersion: service.Previous,
+			VersionSession:  service.VersionSession,
 			Size:            fileSize,
 		},
 		File: rc,

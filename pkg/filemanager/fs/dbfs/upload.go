@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"math"
 	"path"
+	"strconv"
 	"time"
 
 	"github.com/cloudreve/Cloudreve/v4/ent"
@@ -15,6 +16,7 @@ import (
 	"github.com/cloudreve/Cloudreve/v4/pkg/hashid"
 	"github.com/cloudreve/Cloudreve/v4/pkg/serializer"
 	"github.com/cloudreve/Cloudreve/v4/pkg/util"
+	"github.com/samber/lo"
 )
 
 func (f *DBFS) PreValidateUpload(ctx context.Context, dst *fs.URI, files ...fs.PreValidateFile) error {
@@ -256,6 +258,7 @@ func (f *DBFS) PrepareUpload(ctx context.Context, req *fs.UploadRequest, opts ..
 			ExpireAt:            req.Props.ExpireAt,
 			EntityType:          req.Props.EntityType,
 			Metadata:            req.Props.Metadata,
+			VersionSession:      req.Props.VersionSession,
 			ClientSideEncrypted: req.Props.ClientSideEncrypted,
 		},
 		FileID:         fileId,
@@ -284,6 +287,12 @@ func (f *DBFS) CompleteUpload(ctx context.Context, session *fs.UploadSession) (f
 	}
 
 	filePrivate := file.(*File)
+	// CompleteUpload normally loads only entities. Version-session metadata is
+	// private, so explicitly load all metadata before deciding which prior
+	// intermediate entity can be replaced.
+	if err := f.fileClient.QueryMetadata(ctx, filePrivate.Model); err != nil {
+		return nil, fmt.Errorf("failed to load version session metadata: %w", err)
+	}
 
 	// Confirm locks on placeholder file
 	if session.LockToken != "" {
@@ -316,6 +325,18 @@ func (f *DBFS) CompleteUpload(ctx context.Context, session *fs.UploadSession) (f
 			maxVersions = math.MaxInt32
 		}
 	}
+	if entityType == types.EntityTypeVersion && session.Props.VersionSession != "" && maxVersions < 2 {
+		// An Office editing session must leave the file state from before the
+		// session recoverable, even when the user's normal retention limit is off
+		// or set to one entity.
+		maxVersions = 2
+	}
+
+	// A desktop version session publishes every backup as the current file. On
+	// later backups in that same session, the prior intermediate entity is
+	// removed so the history grows once per editing session instead of once per
+	// save operation.
+	versionSessionReplacement := findVersionSessionReplacement(filePrivate, session.Props.VersionSession, session.EntityID)
 
 	// Start transaction to update file
 	fc, tx, ctx, err := inventory.WithTx(ctx, f.fileClient)
@@ -343,12 +364,44 @@ func (f *DBFS) CompleteUpload(ctx context.Context, session *fs.UploadSession) (f
 		}
 	}
 
-	diff, err := fc.CapEntities(ctx, filePrivate.Model, owner, maxVersions, entityType)
+	var diff inventory.StorageDiff
+	if versionSessionReplacement != nil {
+		// Remove the prior backup from this same session before capping. This
+		// keeps the version from before the session in the retention window.
+		diff, err = fc.UnlinkEntity(ctx, versionSessionReplacement, filePrivate.Model, owner)
+		if err != nil {
+			_ = inventory.Rollback(tx)
+			return nil, serializer.NewError(serializer.CodeDBError, "Failed to replace version session entity", err)
+		}
+		tx.AppendStorageDiff(diff)
+	}
+
+	diff, err = fc.CapEntities(ctx, filePrivate.Model, owner, maxVersions, entityType)
 	if err != nil {
 		_ = inventory.Rollback(tx)
 		return nil, serializer.NewError(serializer.CodeDBError, "Failed to cap version entities", err)
 	}
 	tx.AppendStorageDiff(diff)
+
+	if entityType == types.EntityTypeVersion {
+		if session.Props.VersionSession == "" {
+			err = fc.RemoveMetadata(ctx, filePrivate.Model, MetadataVersionSessionID, MetadataVersionSessionEntity)
+		} else {
+			versionSessionMetadata := map[string]string{
+				MetadataVersionSessionID:     session.Props.VersionSession,
+				MetadataVersionSessionEntity: strconv.Itoa(session.EntityID),
+			}
+			privateMask := map[string]bool{
+				MetadataVersionSessionID:     true,
+				MetadataVersionSessionEntity: true,
+			}
+			err = fc.UpsertMetadata(ctx, filePrivate.Model, versionSessionMetadata, privateMask)
+		}
+		if err != nil {
+			_ = inventory.Rollback(tx)
+			return nil, serializer.NewError(serializer.CodeDBError, "Failed to update version session metadata", err)
+		}
+	}
 
 	if entityType == types.EntityTypeVersion {
 		// If updating version entity, we need to cap all existing thumbnail entity to let it re-generate.
@@ -380,6 +433,37 @@ func (f *DBFS) CompleteUpload(ctx context.Context, session *fs.UploadSession) (f
 	}
 
 	return file, nil
+}
+
+// findVersionSessionReplacement returns the previous intermediate entity only
+// when it was produced by the same trusted server-side session metadata. A new
+// session intentionally returns nil so the previous current entity becomes a
+// recoverable historical version.
+func findVersionSessionReplacement(file *File, sessionID string, newEntityID int) *ent.Entity {
+	if sessionID == "" {
+		return nil
+	}
+
+	metadata := file.Metadata()
+	if metadata[MetadataVersionSessionID] != sessionID {
+		return nil
+	}
+
+	entityID, err := strconv.Atoi(metadata[MetadataVersionSessionEntity])
+	if err != nil || entityID == newEntityID {
+		return nil
+	}
+
+	entity, found := lo.Find(file.Model.Edges.Entities, func(entity *ent.Entity) bool {
+		return entity.ID == entityID &&
+			entity.Type == int(types.EntityTypeVersion) &&
+			entity.UploadSessionID == nil
+	})
+	if !found {
+		return nil
+	}
+
+	return entity
 }
 
 // This function will be used:

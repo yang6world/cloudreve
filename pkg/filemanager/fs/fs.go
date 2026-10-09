@@ -295,6 +295,9 @@ type (
 		MimeType               string
 		Metadata               map[string]string
 		PreviousVersion        string
+		// VersionSession groups repeated updates from one desktop editing session.
+		// The DBFS keeps only the latest version entity for a non-empty session ID.
+		VersionSession string
 		// EntityType is the type of the entity to be created. If not set, a new file will be created
 		// with a default version entity. This will be set in update request for existing files.
 		EntityType          *types.EntityType
