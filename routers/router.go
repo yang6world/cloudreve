@@ -20,6 +20,7 @@ import (
 	"github.com/cloudreve/Cloudreve/v4/service/explorer"
 	"github.com/cloudreve/Cloudreve/v4/service/node"
 	"github.com/cloudreve/Cloudreve/v4/service/oauth"
+	oidcsvc "github.com/cloudreve/Cloudreve/v4/service/oidc"
 	"github.com/cloudreve/Cloudreve/v4/service/setting"
 	sharesvc "github.com/cloudreve/Cloudreve/v4/service/share"
 	usersvc "github.com/cloudreve/Cloudreve/v4/service/user"
@@ -283,6 +284,13 @@ func initMasterRouter(dep dependency.Dep) *gin.Engine {
 		// User authentication
 		session := v4.Group("session")
 		{
+			session.GET("oidc", controllers.OIDCStart)
+			session.GET("oidc/callback", controllers.OIDCCallback)
+			session.POST("oidc/exchange",
+				controllers.FromJSON[oidcsvc.ExchangeService](oidcsvc.ExchangeParameterCtx{}),
+				controllers.OIDCExchange,
+			)
+
 			token := session.Group("token")
 			// Token based authentication
 			{

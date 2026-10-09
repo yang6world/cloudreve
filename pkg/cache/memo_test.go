@@ -2,9 +2,45 @@ package cache
 
 import (
 	"github.com/stretchr/testify/assert"
+	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 )
+
+func TestMemoStore_Take(t *testing.T) {
+	store := &MemoStore{Store: &sync.Map{}}
+	if err := store.Set("ticket", "value", 60); err != nil {
+		t.Fatal(err)
+	}
+
+	value, ok := store.Take("ticket")
+	if !ok || value != "value" {
+		t.Fatalf("unexpected first take: %#v, %v", value, ok)
+	}
+	if value, ok = store.Take("ticket"); ok || value != nil {
+		t.Fatalf("ticket was consumed more than once: %#v, %v", value, ok)
+	}
+
+	if err := store.Set("concurrent-ticket", "value", 60); err != nil {
+		t.Fatal(err)
+	}
+	var consumed int32
+	var wg sync.WaitGroup
+	for range 32 {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			if _, ok := store.Take("concurrent-ticket"); ok {
+				atomic.AddInt32(&consumed, 1)
+			}
+		}()
+	}
+	wg.Wait()
+	if consumed != 1 {
+		t.Fatalf("ticket was consumed %d times", consumed)
+	}
+}
 
 func TestNewMemoStore(t *testing.T) {
 	asserts := assert.New(t)

@@ -18,6 +18,7 @@ import (
 	"github.com/cloudreve/Cloudreve/v4/pkg/setting"
 	"github.com/cloudreve/Cloudreve/v4/pkg/thumb"
 	"github.com/cloudreve/Cloudreve/v4/pkg/util"
+	oidcsvc "github.com/cloudreve/Cloudreve/v4/service/oidc"
 	"github.com/gin-gonic/gin"
 	"github.com/samber/lo"
 )
@@ -199,6 +200,11 @@ func (s *GetSettingService) GetSetting(c *gin.Context) (map[string]string, error
 	if err != nil {
 		return nil, serializer.NewError(serializer.CodeDBError, "Failed to get settings", err)
 	}
+	if lo.Contains(s.Keys, oidcsvc.SettingClientSecret) {
+		if secret, err := dep.SettingClient().Get(c, oidcsvc.SettingClientSecret); err == nil && secret != "" {
+			res[oidcsvc.SettingClientSecret] = oidcsvc.MaskedClientSecret
+		}
+	}
 
 	return res, nil
 }
@@ -214,9 +220,18 @@ type (
 
 var (
 	preprocessors = map[string]SettingPreProcessor{
-		"siteURL":      siteUrlPreProcessor,
-		"mime_mapping": mimeMappingPreProcessor,
-		"secret_key":   secretKeyPreProcessor,
+		"siteURL":                     siteUrlPreProcessor,
+		"mime_mapping":                mimeMappingPreProcessor,
+		"secret_key":                  secretKeyPreProcessor,
+		"oidc_enabled":                oidcSettingPreProcessor,
+		"oidc_issuer":                 oidcSettingPreProcessor,
+		"oidc_client_id":              oidcSettingPreProcessor,
+		"oidc_client_secret":          oidcSettingPreProcessor,
+		"oidc_scopes":                 oidcSettingPreProcessor,
+		"oidc_display_name":           oidcSettingPreProcessor,
+		"oidc_logo":                   oidcSettingPreProcessor,
+		"oidc_only_login":             oidcSettingPreProcessor,
+		"oidc_require_verified_email": oidcSettingPreProcessor,
 	}
 	postprocessors = map[string]SettingPostProcessor{
 		"mime_mapping":                               mimeMappingPostProcessor,
@@ -331,6 +346,9 @@ func (s *SetSettingService) SetSetting(c *gin.Context) (map[string]string, error
 			return nil, serializer.NewError(serializer.CodeParamErr, "Failed to post process settings", err)
 		}
 	}
+	if secret, ok := s.Settings[oidcsvc.SettingClientSecret]; ok && secret != "" {
+		s.Settings[oidcsvc.SettingClientSecret] = oidcsvc.MaskedClientSecret
+	}
 
 	return s.Settings, nil
 }
@@ -353,6 +371,10 @@ func siteUrlPreProcessor(ctx context.Context, settings map[string]string) error 
 func secretKeyPreProcessor(ctx context.Context, settings map[string]string) error {
 	settings["secret_key"] = util.RandStringRunesCrypto(256)
 	return nil
+}
+
+func oidcSettingPreProcessor(ctx context.Context, settings map[string]string) error {
+	return oidcsvc.PrepareSettings(ctx, dependency.FromContext(ctx), settings)
 }
 
 func mimeMappingPreProcessor(ctx context.Context, settings map[string]string) error {

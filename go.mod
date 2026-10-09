@@ -11,6 +11,7 @@ require (
 	github.com/aws/aws-sdk-go v1.34.0
 	github.com/bodgit/sevenzip v1.6.0
 	github.com/cloudflare/cfssl v1.6.1
+	github.com/coreos/go-oidc/v3 v3.14.1
 	github.com/dhowden/tag v0.0.0-20230630033851-978a0926ee25
 	github.com/dsoprea/go-exif/v3 v3.0.1
 	github.com/dsoprea/go-heic-exif-extractor v0.0.0-20210512044107-62067e44c235
@@ -60,6 +61,7 @@ require (
 	github.com/wneessen/go-mail v0.7.2
 	golang.org/x/exp v0.0.0-20240904232852-e7e105dedf7e
 	golang.org/x/image v0.41.0
+	golang.org/x/oauth2 v0.28.0
 	golang.org/x/text v0.37.0
 	golang.org/x/time v0.12.0
 	golang.org/x/tools v0.44.0
@@ -94,6 +96,7 @@ require (
 	github.com/gabriel-vasile/mimetype v1.4.10 // indirect
 	github.com/gin-contrib/sse v1.1.0 // indirect
 	github.com/go-errors/errors v1.4.2 // indirect
+	github.com/go-jose/go-jose/v4 v4.0.5 // indirect
 	github.com/go-openapi/inflect v0.19.0 // indirect
 	github.com/go-playground/locales v0.14.1 // indirect
 	github.com/go-playground/universal-translator v0.18.1 // indirect

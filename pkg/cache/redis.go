@@ -21,6 +21,14 @@ type item struct {
 	Value interface{}
 }
 
+var takeScript = redis.NewScript(1, `
+local value = redis.call("GET", KEYS[1])
+if value then
+  redis.call("DEL", KEYS[1])
+end
+return value
+`)
+
 func serializer(value any) ([]byte, error) {
 	var buffer bytes.Buffer
 	enc := gob.NewEncoder(&buffer)
@@ -126,6 +134,26 @@ func (store *RedisStore) Get(key string) (any, bool) {
 
 	return finalValue, true
 
+}
+
+// Take atomically gets and removes a value.
+func (store *RedisStore) Take(key string) (any, bool) {
+	rc := store.pool.Get()
+	defer rc.Close()
+	if rc.Err() != nil {
+		return nil, false
+	}
+
+	v, err := redis.Bytes(takeScript.Do(rc, key))
+	if err != nil || v == nil {
+		return nil, false
+	}
+
+	finalValue, err := deserializer(v)
+	if err != nil {
+		return nil, false
+	}
+	return finalValue, true
 }
 
 // Gets 批量取值

@@ -94,6 +94,11 @@ func (store *MemoStore) Get(key string) (any, bool) {
 	return getValue(store.Store.Load(key))
 }
 
+// Take atomically gets and removes a value.
+func (store *MemoStore) Take(key string) (any, bool) {
+	return getValue(store.Store.LoadAndDelete(key))
+}
+
 // Gets 批量取值
 func (store *MemoStore) Gets(keys []string, prefix string) (map[string]any, []string) {
 	var res = make(map[string]interface{})

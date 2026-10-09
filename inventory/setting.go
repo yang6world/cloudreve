@@ -74,7 +74,7 @@ func (c *settingClient) Gets(ctx context.Context, names []string) (map[string]st
 func (c *settingClient) Set(ctx context.Context, settings map[string]string) error {
 	for k, v := range settings {
 		if err := c.client.Setting.Update().Where(setting.Name(k)).SetValue(v).Exec(ctx); err != nil {
-			return fmt.Errorf("failed to create setting %q: %w", k, err)
+			return fmt.Errorf("failed to update setting %q: %w", k, err)
 		}
 
 	}
@@ -686,10 +686,20 @@ var DefaultSettings = map[string]string{
 	"fts_chunk_size":                             "2000",
 	"viewer_default_apps":                        "{}",
 	"expose_user_email":                          "1",
+	"oidc_enabled":                               "0",
+	"oidc_issuer":                                "",
+	"oidc_client_id":                             "",
+	"oidc_client_secret":                         "",
+	"oidc_scopes":                                "openid profile email",
+	"oidc_display_name":                          "OpenID Connect",
+	"oidc_logo":                                  "",
+	"oidc_only_login":                            "0",
+	"oidc_require_verified_email":                "1",
 }
 
 var RedactedSettings = map[string]struct{}{
 	"encrypt_master_key": {},
+	"oidc_client_secret": {},
 	"secret_key":         {},
 }
 

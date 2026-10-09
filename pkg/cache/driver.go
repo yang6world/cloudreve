@@ -16,6 +16,9 @@ type Driver interface {
 	// 取值，并返回是否成功
 	Get(key string) (any, bool)
 
+	// Take atomically gets and removes a value by key.
+	Take(key string) (any, bool)
+
 	// 批量取值，返回成功取值的map即不存在的值
 	Gets(keys []string, prefix string) (map[string]any, []string)
 

@@ -9,6 +9,7 @@ import (
 	"github.com/cloudreve/Cloudreve/v4/inventory/types"
 	"github.com/cloudreve/Cloudreve/v4/pkg/setting"
 	"github.com/cloudreve/Cloudreve/v4/pkg/thumb"
+	oidcsvc "github.com/cloudreve/Cloudreve/v4/service/oidc"
 	"github.com/cloudreve/Cloudreve/v4/service/user"
 	"github.com/gin-gonic/gin"
 	"github.com/mojocn/base64Captcha"
@@ -28,19 +29,20 @@ type SiteConfig struct {
 	CustomHTML     *setting.CustomHTML     `json:"custom_html,omitempty"`
 
 	// Login Section
-	LoginCaptcha     bool                `json:"login_captcha,omitempty"`
-	RegCaptcha       bool                `json:"reg_captcha,omitempty"`
-	ForgetCaptcha    bool                `json:"forget_captcha,omitempty"`
-	Authn            bool                `json:"authn,omitempty"`
-	ReCaptchaKey     string              `json:"captcha_ReCaptchaKey,omitempty"`
-	CaptchaType      setting.CaptchaType `json:"captcha_type,omitempty"`
-	TurnstileSiteID  string              `json:"turnstile_site_id,omitempty"`
-	CapInstanceURL   string              `json:"captcha_cap_instance_url,omitempty"`
-	CapSiteKey       string              `json:"captcha_cap_site_key,omitempty"`
-	CapAssetServer   string              `json:"captcha_cap_asset_server,omitempty"`
-	RegisterEnabled  bool                `json:"register_enabled,omitempty"`
-	TosUrl           string              `json:"tos_url,omitempty"`
-	PrivacyPolicyUrl string              `json:"privacy_policy_url,omitempty"`
+	LoginCaptcha     bool                  `json:"login_captcha,omitempty"`
+	RegCaptcha       bool                  `json:"reg_captcha,omitempty"`
+	ForgetCaptcha    bool                  `json:"forget_captcha,omitempty"`
+	Authn            bool                  `json:"authn,omitempty"`
+	ReCaptchaKey     string                `json:"captcha_ReCaptchaKey,omitempty"`
+	CaptchaType      setting.CaptchaType   `json:"captcha_type,omitempty"`
+	TurnstileSiteID  string                `json:"turnstile_site_id,omitempty"`
+	CapInstanceURL   string                `json:"captcha_cap_instance_url,omitempty"`
+	CapSiteKey       string                `json:"captcha_cap_site_key,omitempty"`
+	CapAssetServer   string                `json:"captcha_cap_asset_server,omitempty"`
+	RegisterEnabled  bool                  `json:"register_enabled,omitempty"`
+	TosUrl           string                `json:"tos_url,omitempty"`
+	PrivacyPolicyUrl string                `json:"privacy_policy_url,omitempty"`
+	OIDC             *oidcsvc.PublicConfig `json:"oidc,omitempty"`
 
 	// Explorer section
 	Icons                string                     `json:"icons,omitempty"`
@@ -89,6 +91,10 @@ func (s *GetSettingService) GetSiteConfig(c *gin.Context) (*SiteConfig, error) {
 	switch s.Section {
 	case "login":
 		legalDocs := settings.LegalDocuments(c)
+		oidcConfig, err := oidcsvc.LoadConfig(c, dep)
+		if err != nil {
+			return nil, err
+		}
 		return &SiteConfig{
 			LoginCaptcha:     settings.LoginCaptchaEnabled(c),
 			RegCaptcha:       settings.RegCaptchaEnabled(c),
@@ -97,6 +103,7 @@ func (s *GetSettingService) GetSiteConfig(c *gin.Context) (*SiteConfig, error) {
 			RegisterEnabled:  settings.RegisterEnabled(c),
 			PrivacyPolicyUrl: legalDocs.PrivacyPolicy,
 			TosUrl:           legalDocs.TermsOfService,
+			OIDC:             oidcConfig.Public(),
 		}, nil
 	case "explorer":
 		explorerSettings := settings.ExplorerFrontendSettings(c)
